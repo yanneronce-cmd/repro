@@ -5,7 +5,6 @@
 <title>Reproductores</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 
-<!-- Icono de la app en la pantalla de inicio -->
 <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
 <link rel="apple-touch-icon" sizes="167x167" href="apple-touch-icon-167.png">
 <link rel="apple-touch-icon" sizes="152x152" href="apple-touch-icon-152.png">
@@ -14,7 +13,6 @@
 <link rel="shortcut icon" href="favicon.ico">
 <link rel="manifest" href="manifest.webmanifest">
 
-<!-- Que se abra como app, sin barra del navegador -->
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Reproductores">
@@ -24,34 +22,37 @@
 <style>
   html, body { margin: 0; padding: 0; height: 100%; background: #121212; overflow: hidden; }
   iframe { position: fixed; inset: 0; width: 100%; height: 100%; border: 0; background: #121212; }
-  #carga {
-    position: fixed; inset: 0; display: flex; flex-direction: column;
-    align-items: center; justify-content: center; gap: 14px;
-    background: #121212; color: #9C9CA8;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; font-size: 13px;
-    transition: opacity .4s; z-index: 2;
-  }
+  #carga { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; background: #121212; color: #9C9CA8; font-family: sans-serif; font-size: 13px; transition: opacity .4s; z-index: 2; }
   #carga img { width: 84px; height: 84px; border-radius: 20px; }
   #carga.oculto { opacity: 0; pointer-events: none; }
+  #intro { position: fixed; inset: 0; z-index: 3; background: #000; transition: opacity .5s; }
+  #intro img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  #intro.oculto { opacity: 0; pointer-events: none; }
 </style>
 </head>
 <body>
+
+<div id="intro"><img src="intro.jpg" alt=""></div>
 
 <div id="carga">
   <img src="icon-192.png" alt="">
   <span>Cargando Reproductores…</span>
 </div>
 
-<iframe id="app"
-        src="https://script.google.com/macros/s/AKfycbzDNhAU62cAGErnfZw1vToz485Q0bFCySLJR0U3bENiJiprHRbo2rrXS1LSoD_3-k4V/exec"
-        allow="clipboard-write; fullscreen"></iframe>
+<iframe id="app" src="https://script.google.com/macros/s/AKfycbzDNhAU62cAGErnfZw1vToz485Q0bFCySLJR0U3bENiJiprHRbo2rrXS1LSoD_3-k4V/exec" allow="clipboard-write; fullscreen"></iframe>
 
 <script>
-  var f = document.getElementById('app');
-  f.addEventListener('load', function () {
-    document.getElementById('carga').classList.add('oculto');
+  setTimeout(function () {
+    var el = document.getElementById('intro');
+    if (el) el.className = 'oculto';
+  }, 1000);
+
+  document.getElementById('app').addEventListener('load', function () {
+    document.getElementById('carga').className = 'oculto';
   });
-  setTimeout(function () { document.getElementById('carga').classList.add('oculto'); }, 9000);
+  setTimeout(function () {
+    document.getElementById('carga').className = 'oculto';
+  }, 9000);
 </script>
 
 </body>
