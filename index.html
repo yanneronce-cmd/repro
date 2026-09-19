@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="es">
+<html lang="es" style="background:#121212;">
 <head>
 <meta charset="utf-8">
 <title>Reproductores</title>
@@ -30,13 +30,19 @@
     font-family: sans-serif; font-size: 13px;
     transition: opacity .4s;
   }
-  /* tamaño relativo al ancho de pantalla (18vw), con tope de 84px — así en
-     computadora se queda en 84px como ya se veía bien, y en celular se achica
-     en la misma proporción en vez de quedar fijo en 84px (que ahí se ve grande) */
   #carga img, #intro img { width: clamp(48px, 18vw, 84px); height: clamp(48px, 18vw, 84px); border-radius: 20%; object-fit: cover; }
   #carga { z-index: 2; }
   #intro { z-index: 3; }
   #carga.oculto, #intro.oculto { opacity: 0; pointer-events: none; }
+
+  /* Latido lento en el ícono de carga, para que se note que sigue trabajando
+     y no que la pantalla se quedó pegada — sobre todo ahora que carga tres
+     cosas (Control de Lotes, Consumos, Salas Activas) y puede tardar más. */
+  #carga img { animation: latido 1.8s ease-in-out infinite; }
+  @keyframes latido {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.08); }
+  }
 </style>
 </head>
 <body>
@@ -58,12 +64,20 @@
     if (el) el.className = 'oculto';
   }, 1000);
 
-  document.getElementById('app').addEventListener('load', function () {
-    document.getElementById('carga').className = 'oculto';
+  // La pantalla de "Cargando…" ya NO se oculta solo porque el iframe terminó
+  // de cargar su HTML — eso pasa rápido pero adentro sigue pidiendo datos
+  // (Control de Lotes, Consumos, Salas Activas). Se oculta recién cuando el
+  // propio dashboard avisa "listo" por postMessage. Si por algo esa señal
+  // nunca llega, el timeout de respaldo la oculta igual a los 20s para que
+  // no se quede pegada para siempre.
+  window.addEventListener('message', function (ev) {
+    if (ev.data === 'reproductores:listo') {
+      document.getElementById('carga').className = 'oculto';
+    }
   });
   setTimeout(function () {
     document.getElementById('carga').className = 'oculto';
-  }, 9000);
+  }, 20000);
 </script>
 
 </body>
