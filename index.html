@@ -33,51 +33,12 @@
   #carga img, #intro img { width: clamp(48px, 18vw, 84px); height: clamp(48px, 18vw, 84px); border-radius: 20%; object-fit: cover; }
   #carga { z-index: 2; }
   #intro { z-index: 4; }
-  #carga.oculto, #intro.oculto, #login.oculto { opacity: 0; pointer-events: none; }
+  #carga.oculto, #intro.oculto { opacity: 0; pointer-events: none; }
 
   #carga img { animation: latido 1.8s ease-in-out infinite; }
   @keyframes latido {
     0%, 100% { transform: scale(1); }
     50% { transform: scale(1.08); }
-  }
-
-  /* Pantalla de login: aparece después de la foto de intro, y de paso
-     "quema" el tiempo de carga de los datos de fondo mientras la persona
-     escribe su cédula. */
-  #login {
-    position: fixed; inset: 0; z-index: 3; opacity: 1;
-    display: flex; align-items: center; justify-content: center;
-    background: #0E1117; transition: opacity .4s;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    padding: 24px; box-sizing: border-box;
-  }
-  #login .caja { width: 100%; max-width: 340px; }
-  #login h1 {
-    color: #F1F1F4; font-size: 20px; font-weight: 800; text-align: center;
-    margin: 0 0 28px; letter-spacing: .01em;
-  }
-  #login .campo {
-    display: flex; align-items: center; gap: 10px;
-    background: #1F2530; border-radius: 999px; padding: 6px 8px 6px 6px;
-    margin-bottom: 14px;
-  }
-  #login .campo .icono {
-    width: 34px; height: 34px; border-radius: 999px; background: #F1F1F4;
-    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
-  }
-  #login input {
-    flex: 1; min-width: 0; background: transparent; border: 0; outline: none;
-    color: #F1F1F4; font-size: 15px; letter-spacing: .04em;
-  }
-  #login input::placeholder { color: #6B7280; letter-spacing: normal; }
-  #login button {
-    width: 100%; margin-top: 10px; background: #F1F1F4; color: #14181F;
-    border: 0; border-radius: 999px; padding: 14px; font-size: 14px;
-    font-weight: 800; letter-spacing: .04em; cursor: pointer;
-  }
-  #login button:active { transform: scale(.98); }
-  #login .error {
-    color: #FF6B5B; font-size: 12px; text-align: center; margin-top: 10px; min-height: 14px;
   }
 </style>
 </head>
@@ -87,99 +48,37 @@
   <img src="intro.jpg" alt="">
 </div>
 
-<div id="login">
-  <div class="caja">
-    <h1>REPRODUCTORES</h1>
-    <form id="formLogin" autocomplete="off">
-      <div class="campo">
-        <span class="icono">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#14181F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-        </span>
-        <input id="inpCedula" type="tel" inputmode="numeric" placeholder="N° de cédula" maxlength="10">
-      </div>
-      <button type="submit" id="btnLogin">INGRESAR</button>
-      <p class="error" id="loginError"></p>
-    </form>
-  </div>
-</div>
-
 <div id="carga">
   <img src="icon-192.png" alt="">
   <span>Cargando Reproductores…</span>
 </div>
 
+<!-- El login real (cédula, BIENVENIDO, permisos por persona) vive DENTRO
+     de esta página de Apps Script — el launcher ya no maneja login ni
+     postMessage, porque Google bloquea la comunicación entre este dominio
+     (GitHub Pages) y script.google.com en los dos sentidos. -->
 <iframe id="app" src="https://script.google.com/macros/s/AKfycby_yY9d85MFWQcspabnS50Hg62GkYzX_77zS05O55WjjSy7KOYoj5L1OioEtUi5do7B/exec" allow="clipboard-write; fullscreen"></iframe>
 
 <script>
-  var URL_APP_ = document.getElementById('app').src; // URL base, sin cédula todavía
-  var listo = false; // true cuando el dashboard ya avisó que terminó de cargar
-
   setTimeout(function () {
     var el = document.getElementById('intro');
     if (el) el.className = 'oculto';
   }, 1000);
 
-  window.addEventListener('message', function (ev) {
-    if (ev.data === 'reproductores:listo') {
-      listo = true;
-      document.getElementById('carga').className = 'oculto';
-      return;
-    }
-    if (ev.data && ev.data.tipo === 'reproductores:bienvenida') {
-      mostrarBienvenida_(ev.data.ok, ev.data.nombre);
-    }
-  });
-  // respaldo por si la señal de "listo" nunca llega (por ejemplo un error de carga)
-  setTimeout(function () { listo = true; document.getElementById('carga').className = 'oculto'; }, 20000);
-
-  function mostrarBienvenida_(ok, nombre) {
-    var loginEl = document.getElementById('login');
-    var btn = document.getElementById('btnLogin');
-    if (!ok) {
-      document.getElementById('loginError').textContent = 'Cédula no autorizada.';
-      if (btn) btn.disabled = false;
-      return;
-    }
-    // mismo tipo de letra y caja que el login, solo cambia el contenido
-    loginEl.innerHTML = '<div class="caja" style="text-align:center;"><h1>BIENVENIDO<br>' + esc_(nombre || '') + '</h1></div>';
-    setTimeout(function () {
-      loginEl.className = 'oculto';
-      if (!listo) document.getElementById('carga').className = '';
-    }, 1200);
+  // No hay forma confiable de que el iframe le avise a esta página cuándo
+  // terminó de cargar (postMessage está bloqueado entre estos dos
+  // dominios), así que usamos el evento nativo "load" del iframe: se
+  // dispara en cuanto el documento de adentro (con su propia pantalla de
+  // login) ya está listo para mostrarse — no espera los datos del
+  // dashboard, esos los maneja su propia pantalla de carga interna.
+  var appFrame = document.getElementById('app');
+  function ocultarCarga() {
+    var el = document.getElementById('carga');
+    if (el) el.className = 'oculto';
   }
-
-  function esc_(s) {
-    var d = document.createElement('div');
-    d.textContent = String(s).toUpperCase();
-    return d.innerHTML;
-  }
-
-  document.getElementById('formLogin').addEventListener('submit', function (ev) {
-    ev.preventDefault();
-    var cedula = document.getElementById('inpCedula').value.trim();
-    var errorEl = document.getElementById('loginError');
-    if (!/^\d{10}$/.test(cedula)) {
-      errorEl.textContent = 'Ingresa los 10 dígitos de tu cédula.';
-      return;
-    }
-    errorEl.textContent = '';
-    document.getElementById('btnLogin').disabled = true;
-
-    // Apps Script bloquea el postMessage entre dominios distintos (su propio
-    // filtro de seguridad interno lo descarta), así que la cédula va en la
-    // URL del iframe en vez de mandarse por mensaje — esto sí es confiable
-    // siempre. Recarga el iframe con la cédula puesta.
-    document.getElementById('app').src = URL_APP_ + '?cedula=' + encodeURIComponent(cedula);
-
-    // si a los 8 segundos no llegó NINGUNA respuesta (ni ok ni error), no se
-    // queda el botón trabado para siempre — se avisa y se puede reintentar
-    setTimeout(function () {
-      if (document.getElementById('btnLogin').disabled) {
-        errorEl.textContent = 'No se pudo verificar — revisa tu conexión e intenta de nuevo.';
-        document.getElementById('btnLogin').disabled = false;
-      }
-    }, 8000);
-  });
+  appFrame.addEventListener('load', ocultarCarga);
+  // respaldo por si el evento "load" no llegara a dispararse
+  setTimeout(ocultarCarga, 8000);
 </script>
 
 </body>
