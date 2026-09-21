@@ -111,8 +111,8 @@
 <iframe id="app" src="https://script.google.com/macros/s/AKfycby_yY9d85MFWQcspabnS50Hg62GkYzX_77zS05O55WjjSy7KOYoj5L1OioEtUi5do7B/exec" allow="clipboard-write; fullscreen"></iframe>
 
 <script>
+  var URL_APP_ = document.getElementById('app').src; // URL base, sin cédula todavía
   var listo = false; // true cuando el dashboard ya avisó que terminó de cargar
-  var reintentoCedula = null;
 
   setTimeout(function () {
     var el = document.getElementById('intro');
@@ -126,7 +126,6 @@
       return;
     }
     if (ev.data && ev.data.tipo === 'reproductores:bienvenida') {
-      if (reintentoCedula) { clearInterval(reintentoCedula); reintentoCedula = null; }
       mostrarBienvenida_(ev.data.ok, ev.data.nombre);
     }
   });
@@ -166,21 +165,20 @@
     errorEl.textContent = '';
     document.getElementById('btnLogin').disabled = true;
 
-    function enviar() {
-      try {
-        document.getElementById('app').contentWindow.postMessage({ tipo: 'reproductores:cedula', cedula: cedula }, '*');
-      } catch (e) { /* si el iframe no está listo todavía, se reintenta solo abajo */ }
-    }
-    enviar();
-    // por si el iframe todavía no había terminado de cargar su propio
-    // script cuando se mandó la primera vez, se reintenta hasta que llegue
-    // la respuesta (o se agote el tiempo, ~5s)
-    var intentos = 0;
-    reintentoCedula = setInterval(function () {
-      intentos++;
-      if (intentos > 10) { clearInterval(reintentoCedula); reintentoCedula = null; return; }
-      enviar();
-    }, 500);
+    // Apps Script bloquea el postMessage entre dominios distintos (su propio
+    // filtro de seguridad interno lo descarta), así que la cédula va en la
+    // URL del iframe en vez de mandarse por mensaje — esto sí es confiable
+    // siempre. Recarga el iframe con la cédula puesta.
+    document.getElementById('app').src = URL_APP_ + '?cedula=' + encodeURIComponent(cedula);
+
+    // si a los 8 segundos no llegó NINGUNA respuesta (ni ok ni error), no se
+    // queda el botón trabado para siempre — se avisa y se puede reintentar
+    setTimeout(function () {
+      if (document.getElementById('btnLogin').disabled) {
+        errorEl.textContent = 'No se pudo verificar — revisa tu conexión e intenta de nuevo.';
+        document.getElementById('btnLogin').disabled = false;
+      }
+    }, 8000);
   });
 </script>
 
