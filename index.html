@@ -97,7 +97,7 @@
         </span>
         <input id="inpCedula" type="tel" inputmode="numeric" placeholder="N° de cédula" maxlength="10">
       </div>
-      <button type="submit">INGRESAR</button>
+      <button type="submit" id="btnLogin">INGRESAR</button>
       <p class="error" id="loginError"></p>
     </form>
   </div>
@@ -112,6 +112,7 @@
 
 <script>
   var listo = false; // true cuando el dashboard ya avisó que terminó de cargar
+  var reintentoCedula = null;
 
   setTimeout(function () {
     var el = document.getElementById('intro');
@@ -122,10 +123,37 @@
     if (ev.data === 'reproductores:listo') {
       listo = true;
       document.getElementById('carga').className = 'oculto';
+      return;
+    }
+    if (ev.data && ev.data.tipo === 'reproductores:bienvenida') {
+      if (reintentoCedula) { clearInterval(reintentoCedula); reintentoCedula = null; }
+      mostrarBienvenida_(ev.data.ok, ev.data.nombre);
     }
   });
-  // respaldo por si la señal nunca llega (por ejemplo un error de carga)
+  // respaldo por si la señal de "listo" nunca llega (por ejemplo un error de carga)
   setTimeout(function () { listo = true; document.getElementById('carga').className = 'oculto'; }, 20000);
+
+  function mostrarBienvenida_(ok, nombre) {
+    var loginEl = document.getElementById('login');
+    var btn = document.getElementById('btnLogin');
+    if (!ok) {
+      document.getElementById('loginError').textContent = 'Cédula no autorizada.';
+      if (btn) btn.disabled = false;
+      return;
+    }
+    // mismo tipo de letra y caja que el login, solo cambia el contenido
+    loginEl.innerHTML = '<div class="caja" style="text-align:center;"><h1>BIENVENIDO<br>' + esc_(nombre || '') + '</h1></div>';
+    setTimeout(function () {
+      loginEl.className = 'oculto';
+      if (!listo) document.getElementById('carga').className = '';
+    }, 1200);
+  }
+
+  function esc_(s) {
+    var d = document.createElement('div');
+    d.textContent = String(s).toUpperCase();
+    return d.innerHTML;
+  }
 
   document.getElementById('formLogin').addEventListener('submit', function (ev) {
     ev.preventDefault();
@@ -136,17 +164,23 @@
       return;
     }
     errorEl.textContent = '';
+    document.getElementById('btnLogin').disabled = true;
 
-    // le paso la cédula al dashboard para que (más adelante) filtre según
-    // quién es — por ahora el dashboard todavía no hace nada con esto
-    try {
-      document.getElementById('app').contentWindow.postMessage({ tipo: 'reproductores:cedula', cedula: cedula }, '*');
-    } catch (e) { /* si el iframe no está listo todavía, no pasa nada */ }
-
-    document.getElementById('login').className = 'oculto';
-    // si los datos ya estaban listos antes de que terminara de escribir su
-    // cédula, pasa directo — si no, se ve la pantalla de carga con el latido
-    if (!listo) document.getElementById('carga').className = '';
+    function enviar() {
+      try {
+        document.getElementById('app').contentWindow.postMessage({ tipo: 'reproductores:cedula', cedula: cedula }, '*');
+      } catch (e) { /* si el iframe no está listo todavía, se reintenta solo abajo */ }
+    }
+    enviar();
+    // por si el iframe todavía no había terminado de cargar su propio
+    // script cuando se mandó la primera vez, se reintenta hasta que llegue
+    // la respuesta (o se agote el tiempo, ~5s)
+    var intentos = 0;
+    reintentoCedula = setInterval(function () {
+      intentos++;
+      if (intentos > 10) { clearInterval(reintentoCedula); reintentoCedula = null; return; }
+      enviar();
+    }, 500);
   });
 </script>
 
