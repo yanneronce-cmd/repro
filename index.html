@@ -27,21 +27,57 @@
     position: fixed; inset: 0; display: flex; flex-direction: column;
     align-items: center; justify-content: center; gap: 14px;
     background: #121212; color: #9C9CA8;
-    font-family: sans-serif; font-size: 13px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 13px;
     transition: opacity .4s;
   }
   #carga img, #intro img { width: clamp(48px, 18vw, 84px); height: clamp(48px, 18vw, 84px); border-radius: 20%; object-fit: cover; }
   #carga { z-index: 2; }
-  #intro { z-index: 3; }
-  #carga.oculto, #intro.oculto { opacity: 0; pointer-events: none; }
+  #intro { z-index: 4; }
+  #carga.oculto, #intro.oculto, #login.oculto { opacity: 0; pointer-events: none; }
 
-  /* Latido lento en el ícono de carga, para que se note que sigue trabajando
-     y no que la pantalla se quedó pegada — sobre todo ahora que carga tres
-     cosas (Control de Lotes, Consumos, Salas Activas) y puede tardar más. */
   #carga img { animation: latido 1.8s ease-in-out infinite; }
   @keyframes latido {
     0%, 100% { transform: scale(1); }
     50% { transform: scale(1.08); }
+  }
+
+  /* Pantalla de login: aparece después de la foto de intro, y de paso
+     "quema" el tiempo de carga de los datos de fondo mientras la persona
+     escribe su cédula. */
+  #login {
+    position: fixed; inset: 0; z-index: 3; opacity: 1;
+    display: flex; align-items: center; justify-content: center;
+    background: #0E1117; transition: opacity .4s;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    padding: 24px; box-sizing: border-box;
+  }
+  #login .caja { width: 100%; max-width: 340px; }
+  #login h1 {
+    color: #F1F1F4; font-size: 20px; font-weight: 800; text-align: center;
+    margin: 0 0 28px; letter-spacing: .01em;
+  }
+  #login .campo {
+    display: flex; align-items: center; gap: 10px;
+    background: #1F2530; border-radius: 999px; padding: 6px 8px 6px 6px;
+    margin-bottom: 14px;
+  }
+  #login .campo .icono {
+    width: 34px; height: 34px; border-radius: 999px; background: #F1F1F4;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  #login input {
+    flex: 1; min-width: 0; background: transparent; border: 0; outline: none;
+    color: #F1F1F4; font-size: 15px; letter-spacing: .04em;
+  }
+  #login input::placeholder { color: #6B7280; letter-spacing: normal; }
+  #login button {
+    width: 100%; margin-top: 10px; background: #F1F1F4; color: #14181F;
+    border: 0; border-radius: 999px; padding: 14px; font-size: 14px;
+    font-weight: 800; letter-spacing: .04em; cursor: pointer;
+  }
+  #login button:active { transform: scale(.98); }
+  #login .error {
+    color: #FF6B5B; font-size: 12px; text-align: center; margin-top: 10px; min-height: 14px;
   }
 </style>
 </head>
@@ -49,6 +85,22 @@
 
 <div id="intro">
   <img src="intro.jpg" alt="">
+</div>
+
+<div id="login">
+  <div class="caja">
+    <h1>REPRODUCTORES</h1>
+    <form id="formLogin" autocomplete="off">
+      <div class="campo">
+        <span class="icono">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#14181F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        </span>
+        <input id="inpCedula" type="tel" inputmode="numeric" placeholder="N° de cédula" maxlength="10">
+      </div>
+      <button type="submit">INGRESAR</button>
+      <p class="error" id="loginError"></p>
+    </form>
+  </div>
 </div>
 
 <div id="carga">
@@ -59,25 +111,43 @@
 <iframe id="app" src="https://script.google.com/macros/s/AKfycby_yY9d85MFWQcspabnS50Hg62GkYzX_77zS05O55WjjSy7KOYoj5L1OioEtUi5do7B/exec" allow="clipboard-write; fullscreen"></iframe>
 
 <script>
+  var listo = false; // true cuando el dashboard ya avisó que terminó de cargar
+
   setTimeout(function () {
     var el = document.getElementById('intro');
     if (el) el.className = 'oculto';
   }, 1000);
 
-  // La pantalla de "Cargando…" ya NO se oculta solo porque el iframe terminó
-  // de cargar su HTML — eso pasa rápido pero adentro sigue pidiendo datos
-  // (Control de Lotes, Consumos, Salas Activas). Se oculta recién cuando el
-  // propio dashboard avisa "listo" por postMessage. Si por algo esa señal
-  // nunca llega, el timeout de respaldo la oculta igual a los 20s para que
-  // no se quede pegada para siempre.
   window.addEventListener('message', function (ev) {
     if (ev.data === 'reproductores:listo') {
+      listo = true;
       document.getElementById('carga').className = 'oculto';
     }
   });
-  setTimeout(function () {
-    document.getElementById('carga').className = 'oculto';
-  }, 20000);
+  // respaldo por si la señal nunca llega (por ejemplo un error de carga)
+  setTimeout(function () { listo = true; document.getElementById('carga').className = 'oculto'; }, 20000);
+
+  document.getElementById('formLogin').addEventListener('submit', function (ev) {
+    ev.preventDefault();
+    var cedula = document.getElementById('inpCedula').value.trim();
+    var errorEl = document.getElementById('loginError');
+    if (!/^\d{10}$/.test(cedula)) {
+      errorEl.textContent = 'Ingresa los 10 dígitos de tu cédula.';
+      return;
+    }
+    errorEl.textContent = '';
+
+    // le paso la cédula al dashboard para que (más adelante) filtre según
+    // quién es — por ahora el dashboard todavía no hace nada con esto
+    try {
+      document.getElementById('app').contentWindow.postMessage({ tipo: 'reproductores:cedula', cedula: cedula }, '*');
+    } catch (e) { /* si el iframe no está listo todavía, no pasa nada */ }
+
+    document.getElementById('login').className = 'oculto';
+    // si los datos ya estaban listos antes de que terminara de escribir su
+    // cédula, pasa directo — si no, se ve la pantalla de carga con el latido
+    if (!listo) document.getElementById('carga').className = '';
+  });
 </script>
 
 </body>
